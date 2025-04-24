@@ -83,28 +83,4 @@ func main() {
 		log.Fatal(fmt.Errorf("failed to run command '%v': %w", cmd.name, err))
 	}
 
-	// prettyCfg, err := cfg.FormatPrettyJSON()
-	// if err != nil {
-	// 	log.Fatal("couldn't prettyfy original JSON configuration file: %w", err)
-	// }
-	// fmt.Printf("original configuration file:\n%v\n", string(prettyCfg))
-
-	// userName := "test"
-
-	// err = cfg.SetUser(userName)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// cfg, err = config.Read()
-	// if err != nil {
-	// 	log.Fatal(fmt.Errorf("couldn't read modified configuration file from disk: %w", err))
-	// }
-
-	// prettyCfg, err = cfg.FormatPrettyJSON()
-	// if err != nil {
-	// 	log.Fatal("couldn't prettyfy modified JSON configuration file: %w", err)
-	// }
-	// fmt.Printf("modified configuration file:\n%v\n", string(prettyCfg))
-
 }
