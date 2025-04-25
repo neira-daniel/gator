@@ -84,7 +84,7 @@ func main() {
 		arguments: cliArgs[2:],
 	}
 	if err := c.run(s, cmd); err != nil {
-		log.Fatal(fmt.Errorf("failed to run command '%v': %w", cmd.name, err))
+		log.Fatal(fmt.Errorf("failed to run '%v' command: %w", cmd.name, err))
 	}
 
 }
