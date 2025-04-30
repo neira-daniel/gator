@@ -53,9 +53,8 @@ func handlerLogin(s *state, cmd command) error {
 	userName := cmd.arguments[0]
 
 	ctx := context.Background()
-	_, err := s.db.GetUser(ctx, userName)
-	if err != nil {
-		return fmt.Errorf("user '%v' already exists", userName)
+	if _, err := s.db.GetUser(ctx, userName); err != nil {
+		return fmt.Errorf("user '%v' is not registered", userName)
 	}
 
 	if err := s.cfg.SetUser(userName); err != nil {
@@ -76,7 +75,7 @@ func handlerRegister(s *state, cmd command) error {
 		return errors.New("too many arguments for the 'register' command")
 	}
 
-	timestamp := time.Now()
+	timestamp := time.Now().UTC()
 	userParams := database.CreateUserParams{
 		ID:        uuid.New(),
 		CreatedAt: timestamp,
@@ -91,10 +90,7 @@ func handlerRegister(s *state, cmd command) error {
 		return fmt.Errorf("couldn't create user: %w", err)
 	}
 
-	s.cfg.CurrentUserName = userParams.Name
-
-	err = config.Write(s.cfg)
-	if err != nil {
+	if err = s.cfg.SetUser(userParams.Name); err != nil {
 		return fmt.Errorf("couldn't save the configuration: %w", err)
 	}
 
