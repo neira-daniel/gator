@@ -1,14 +1,22 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"gator/internal/config"
+	"gator/internal/database"
 	"log"
 	"os"
+	"time"
+
+	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -44,6 +52,12 @@ func handlerLogin(s *state, cmd command) error {
 
 	userName := cmd.arguments[0]
 
+	ctx := context.Background()
+	_, err := s.db.GetUser(ctx, userName)
+	if err != nil {
+		return fmt.Errorf("user '%v' already exists", userName)
+	}
+
 	if err := s.cfg.SetUser(userName); err != nil {
 		return err
 	}
@@ -54,13 +68,57 @@ func handlerLogin(s *state, cmd command) error {
 
 }
 
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		return errors.New("didn't pass the user name to the 'register' command")
+	}
+	if len(cmd.arguments) > 1 {
+		return errors.New("too many arguments for the 'register' command")
+	}
+
+	timestamp := time.Now()
+	userParams := database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: timestamp,
+		UpdatedAt: timestamp,
+		Name:      cmd.arguments[0],
+	}
+
+	ctx := context.Background()
+
+	user, err := s.db.CreateUser(ctx, userParams)
+	if err != nil {
+		return fmt.Errorf("couldn't create user: %w", err)
+	}
+
+	s.cfg.CurrentUserName = userParams.Name
+
+	err = config.Write(s.cfg)
+	if err != nil {
+		return fmt.Errorf("couldn't save the configuration: %w", err)
+	}
+
+	fmt.Printf("user %v created with values\n%+v\n", userParams.Name, user)
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
 		log.Fatal(fmt.Errorf("couldn't read original configuration file from disk: %w", err))
 	}
 
+	db, err := sql.Open("postgres", cfg.DbUrl)
+	if err != nil {
+		log.Fatal(fmt.Errorf("couldn't prepare the database abstraction: %w", err))
+	}
+	defer db.Close()
+
+	dbQueries := database.New(db)
+
 	s := &state{
+		db:  dbQueries,
 		cfg: &cfg,
 	}
 
@@ -68,6 +126,7 @@ func main() {
 		handler: make(map[string]func(*state, command) error),
 	}
 	c.register("login", handlerLogin)
+	c.register("register", handlerRegister)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 3 {
