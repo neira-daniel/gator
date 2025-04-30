@@ -24,7 +24,7 @@ func getConfigFilePath() (string, error) {
 	return path, nil
 }
 
-func write(cfg *Config) error {
+func Write(cfg *Config) error {
 	data, err := cfg.FormatPrettyJSON()
 	// data, err := json.Marshal(cfg)
 	if err != nil {
@@ -65,7 +65,7 @@ func Read() (Config, error) {
 
 func (c *Config) SetUser(user string) error {
 	c.CurrentUserName = user
-	err := write(c)
+	err := Write(c)
 	if err != nil {
 		return fmt.Errorf("couldn't write configuration file to disk after setting user: %w", err)
 	}
