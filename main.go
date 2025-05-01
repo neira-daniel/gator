@@ -104,6 +104,10 @@ func handlerNukeUserData(s *state, cmd command) error {
 		return errors.New("'reset' doesn't take arguments")
 	}
 
+	if err := s.cfg.SetUser(""); err != nil {
+		return fmt.Errorf("reset table 'users' :: couldn't update config. file: %w", err)
+	}
+
 	ctx := context.Background()
 	if err := s.db.NukeData(ctx); err != nil {
 		return fmt.Errorf("(reset user table) couldn't delete records: %w", err)
