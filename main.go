@@ -94,7 +94,7 @@ func handlerRegister(s *state, cmd command) error {
 		return fmt.Errorf("couldn't save the configuration: %w", err)
 	}
 
-	fmt.Printf("user %v created with values\n%+v\n", userParams.Name, user)
+	fmt.Printf("user %v created with values\n%v\n", userParams.Name, user)
 
 	return nil
 }
