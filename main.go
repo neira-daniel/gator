@@ -113,6 +113,29 @@ func handlerNukeUserData(s *state, cmd command) error {
 	return nil
 }
 
+func handleUsers(s *state, cmd command) error {
+	if len(cmd.arguments) != 0 {
+		return errors.New("'users' doesn't take arguments")
+	}
+
+	ctx := context.Background()
+	users, err := s.db.GetUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("list users :: couldn't list registered users: %w", err)
+	}
+
+	for _, user := range users {
+		if user.Name == s.cfg.CurrentUserName {
+			fmt.Printf("* %v (current)\n", user.Name)
+		} else {
+			fmt.Printf("* %v\n", user.Name)
+		}
+
+	}
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -138,6 +161,7 @@ func main() {
 	c.register("login", handlerLogin)
 	c.register("register", handlerRegister)
 	c.register("reset", handlerNukeUserData)
+	c.register("users", handleUsers)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
