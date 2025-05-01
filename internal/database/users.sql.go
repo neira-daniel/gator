@@ -64,3 +64,12 @@ func (q *Queries) GetUser(ctx context.Context, name string) (User, error) {
 	)
 	return i, err
 }
+
+const nukeData = `-- name: NukeData :exec
+DELETE FROM users
+`
+
+func (q *Queries) NukeData(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, nukeData)
+	return err
+}

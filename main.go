@@ -99,6 +99,20 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerNukeUserData(s *state, cmd command) error {
+	if len(cmd.arguments) != 0 {
+		return errors.New("'reset' doesn't take arguments")
+	}
+
+	ctx := context.Background()
+	if err := s.db.NukeData(ctx); err != nil {
+		return fmt.Errorf("(reset user table) couldn't delete records: %w", err)
+	}
+	fmt.Println("table 'users' was reset successfully")
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -123,15 +137,11 @@ func main() {
 	}
 	c.register("login", handlerLogin)
 	c.register("register", handlerRegister)
+	c.register("reset", handlerNukeUserData)
 
 	cliArgs := os.Args
-	if len(cliArgs) < 3 {
-		if len(cliArgs) < 2 {
-			log.Fatal("no command given")
-		} else {
-			log.Fatal("no argument given")
-
-		}
+	if len(cliArgs) < 2 {
+		log.Fatal("no command given")
 	}
 
 	cmd := command{
