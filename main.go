@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/xml"
@@ -164,7 +165,7 @@ func handlerAgg(s *state, cmd command) error {
 type RSSFeed struct {
 	Channel struct {
 		Title       string    `xml:"title"`
-		Link        string    `xml:"link"`
+		Link        string    `xml:"_ link"`
 		Description string    `xml:"description"`
 		Item        []RSSItem `xml:"item"`
 	} `xml:"channel"`
@@ -208,19 +209,23 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 		return nil, fmt.Errorf("reading response body of GET request to %v: %w", feedURL, err)
 	}
 
-	var data RSSFeed
-	if err := xml.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("unmarshalling response body to GET request to %v: %w", feedURL, err)
+	reader := bytes.NewReader(body)
+	decoder := xml.NewDecoder(reader)
+	decoder.DefaultSpace = "_"
+
+	var rss RSSFeed
+	if err := decoder.Decode(&rss); err != nil {
+		return nil, fmt.Errorf("decoding response body to GET request to %v: %w", feedURL, err)
 	}
 
-	data.Channel.Title = html.UnescapeString(data.Channel.Title)
-	data.Channel.Description = html.UnescapeString(data.Channel.Description)
-	for i := range data.Channel.Item {
-		data.Channel.Item[i].Title = html.UnescapeString(data.Channel.Item[i].Title)
-		data.Channel.Item[i].Description = html.UnescapeString(data.Channel.Item[i].Description)
+	rss.Channel.Title = html.UnescapeString(rss.Channel.Title)
+	rss.Channel.Description = html.UnescapeString(rss.Channel.Description)
+	for i := range rss.Channel.Item {
+		rss.Channel.Item[i].Title = html.UnescapeString(rss.Channel.Item[i].Title)
+		rss.Channel.Item[i].Description = html.UnescapeString(rss.Channel.Item[i].Description)
 	}
 
-	return &data, nil
+	return &rss, nil
 }
 
 func main() {
