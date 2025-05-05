@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"gator/internal/config"
 	"gator/internal/database"
+	"html"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -140,6 +144,85 @@ func handleUsers(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.arguments) != 0 {
+		return errors.New("'agg' doesn't take arguments")
+	}
+
+	ctx := context.Background()
+	url := "https://www.wagslane.dev/index.xml"
+	xmlData, err := fetchFeed(ctx, url)
+	if err != nil {
+		return fmt.Errorf("fetching feed in %v: %w", url, err)
+	}
+
+	fmt.Printf("%v\n", xmlData)
+
+	return nil
+}
+
+type RSSFeed struct {
+	Channel struct {
+		Title       string    `xml:"title"`
+		Link        string    `xml:"link"`
+		Description string    `xml:"description"`
+		Item        []RSSItem `xml:"item"`
+	} `xml:"channel"`
+}
+
+type RSSItem struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
+}
+
+func (r *RSSFeed) String() string {
+	feedStr := fmt.Sprintf("{\n  Title       : %v,\n  Link        : %v,\n  Description : %v,\n", r.Channel.Title, r.Channel.Link, r.Channel.Description)
+	for _, v := range r.Channel.Item {
+		feedStr += fmt.Sprintf("%v", &v)
+	}
+	return feedStr + "}"
+}
+
+func (r *RSSItem) String() string {
+	return fmt.Sprintf("  {\n    Title       : %v,\n    Link        : %v,\n    Description : %v,\n    PubDate     : %v\n  },\n", r.Title, r.Link, r.Description, r.PubDate)
+}
+
+func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("building GET request to fetch feed: %w", err)
+	}
+	req.Header.Set("User-Agent", "gator")
+
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("making GET request to fetch %v: %w", feedURL, err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body of GET request to %v: %w", feedURL, err)
+	}
+
+	var data RSSFeed
+	if err := xml.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("unmarshalling response body to GET request to %v: %w", feedURL, err)
+	}
+
+	data.Channel.Title = html.UnescapeString(data.Channel.Title)
+	data.Channel.Description = html.UnescapeString(data.Channel.Description)
+	for i := range data.Channel.Item {
+		data.Channel.Item[i].Title = html.UnescapeString(data.Channel.Item[i].Title)
+		data.Channel.Item[i].Description = html.UnescapeString(data.Channel.Item[i].Description)
+	}
+
+	return &data, nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -166,6 +249,7 @@ func main() {
 	c.register("register", handlerRegister)
 	c.register("reset", handlerNukeUserData)
 	c.register("users", handleUsers)
+	c.register("agg", handlerAgg)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
