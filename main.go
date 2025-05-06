@@ -228,6 +228,38 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &rss, nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.arguments) != 2 {
+		return fmt.Errorf("usage: %v <feed name> <feed URL>", cmd.name)
+	}
+
+	ctx := context.Background()
+
+	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("getting %v's data from the database: %w", s.cfg.CurrentUserName, err)
+	}
+
+	timestamp := time.Now().UTC()
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: timestamp,
+		UpdatedAt: timestamp,
+		Name:      cmd.arguments[0],
+		Url:       cmd.arguments[1],
+		UserID:    userData.ID,
+	}
+
+	feedData, err := s.db.CreateFeed(ctx, feedParams)
+	if err != nil {
+		return fmt.Errorf("storing feed data to the database: %w", err)
+	}
+
+	fmt.Printf("%+v", feedData)
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -255,6 +287,7 @@ func main() {
 	c.register("reset", handlerNukeUserData)
 	c.register("users", handleUsers)
 	c.register("agg", handlerAgg)
+	c.register("addfeed", handlerAddFeed)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
