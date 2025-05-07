@@ -278,6 +278,42 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.arguments) != 1 {
+		return fmt.Errorf("usage: %v <url>", cmd.name)
+	}
+
+	ctx := context.Background()
+
+	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("getting user data: %w", err)
+	}
+
+	feedID, err := s.db.GetFeedIdByURL(ctx, cmd.arguments[0])
+	if err != nil {
+		return fmt.Errorf("getting feed data: %w", err)
+	}
+
+	timestamp := time.Now().UTC()
+	feedFollowParams := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: timestamp,
+		UpdatedAt: timestamp,
+		UserID:    userData.ID,
+		FeedID:    feedID,
+	}
+
+	feedFollowData, err := s.db.CreateFeedFollow(ctx, feedFollowParams)
+	if err != nil {
+		return fmt.Errorf("creating feed follow record: %w", err)
+	}
+
+	fmt.Printf("%+v", feedFollowData)
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -307,6 +343,7 @@ func main() {
 	c.register("agg", handlerAgg)
 	c.register("addfeed", handlerAddFeed)
 	c.register("feeds", handlerFeeds)
+	c.register("follow", handlerFollow)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
