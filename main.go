@@ -260,6 +260,24 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	if len(cmd.arguments) != 0 {
+		return fmt.Errorf("%q doesn't take arguments", cmd.name)
+	}
+
+	ctx := context.Background()
+	feeds, err := s.db.GetFeeds(ctx)
+	if err != nil {
+		return fmt.Errorf("getting feed info. from db: %w", err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("%q\t%v\t%v\n", feed.FeedName, feed.FeedUrl, feed.UserName)
+	}
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -288,6 +306,7 @@ func main() {
 	c.register("users", handleUsers)
 	c.register("agg", handlerAgg)
 	c.register("addfeed", handlerAddFeed)
+	c.register("feeds", handlerFeeds)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
