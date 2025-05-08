@@ -314,6 +314,28 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFollowing(s *state, cmd command) error {
+	if len(cmd.arguments) != 0 {
+		return fmt.Errorf("%q doesn't take arguments", cmd.name)
+	}
+
+	ctx := context.Background()
+
+	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("getting user data: %w", err)
+	}
+
+	feeds, err := s.db.GetFeedFollowsForUser(ctx, userData.ID)
+	if err != nil {
+		return fmt.Errorf("getting feed follows: %w", err)
+	}
+
+	fmt.Printf("%+v\n", feeds)
+
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -344,6 +366,7 @@ func main() {
 	c.register("addfeed", handlerAddFeed)
 	c.register("feeds", handlerFeeds)
 	c.register("follow", handlerFollow)
+	c.register("following", handlerFollowing)
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
