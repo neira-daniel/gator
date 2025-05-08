@@ -30,3 +30,10 @@ SELECT feed_record.id, feed_record.created_at, feed_record.updated_at, feed_reco
 FROM feed_record
 INNER JOIN users ON feed_record.user_id = users.id
 INNER JOIN feeds ON feed_record.feed_id = feeds.id;
+
+-- name: GetFeedFollowsForUser :many
+SELECT feeds.id AS feed_id, feeds.name AS feed_name, users.name AS user_name
+FROM feed_follows
+INNER JOIN feeds ON feed_follows.feed_id = feeds.id
+INNER JOIN users ON feed_follows.user_id = users.id
+WHERE feed_follows.user_id = $1;
