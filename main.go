@@ -250,12 +250,14 @@ func handlerAddFeed(s *state, cmd command) error {
 		UserID:    userData.ID,
 	}
 
-	feedData, err := s.db.CreateFeed(ctx, feedParams)
+	_, err = s.db.CreateFeed(ctx, feedParams)
 	if err != nil {
 		return fmt.Errorf("storing feed data to the database: %w", err)
 	}
 
-	fmt.Printf("%+v", feedData)
+	if err := handlerFollow(s, command{name: cmd.name, arguments: []string{cmd.arguments[1]}}); err != nil {
+		return fmt.Errorf("following feed after adding it: %w", err)
+	}
 
 	return nil
 }
@@ -309,7 +311,7 @@ func handlerFollow(s *state, cmd command) error {
 		return fmt.Errorf("creating feed follow record: %w", err)
 	}
 
-	fmt.Printf("%+v", feedFollowData)
+	fmt.Printf("%v", feedFollowData)
 
 	return nil
 }
