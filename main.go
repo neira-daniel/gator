@@ -228,18 +228,12 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &rss, nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 2 {
 		return fmt.Errorf("usage: %v <feed name> <feed URL>", cmd.name)
 	}
 
 	ctx := context.Background()
-
-	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("getting %v's data from the database: %w", s.cfg.CurrentUserName, err)
-	}
-
 	timestamp := time.Now().UTC()
 	feedParams := database.CreateFeedParams{
 		ID:        uuid.New(),
@@ -250,12 +244,12 @@ func handlerAddFeed(s *state, cmd command) error {
 		UserID:    userData.ID,
 	}
 
-	_, err = s.db.CreateFeed(ctx, feedParams)
+	_, err := s.db.CreateFeed(ctx, feedParams)
 	if err != nil {
 		return fmt.Errorf("storing feed data to the database: %w", err)
 	}
 
-	if err := handlerFollow(s, command{name: cmd.name, arguments: []string{cmd.arguments[1]}}); err != nil {
+	if err := handlerFollow(s, command{name: cmd.name, arguments: []string{cmd.arguments[1]}}, userData); err != nil {
 		return fmt.Errorf("following feed after adding it: %w", err)
 	}
 
@@ -280,18 +274,12 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 1 {
 		return fmt.Errorf("usage: %v <url>", cmd.name)
 	}
 
 	ctx := context.Background()
-
-	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("getting user data: %w", err)
-	}
-
 	feedID, err := s.db.GetFeedIdByURL(ctx, cmd.arguments[0])
 	if err != nil {
 		return fmt.Errorf("getting feed data: %w", err)
@@ -316,18 +304,12 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 0 {
 		return fmt.Errorf("%q doesn't take arguments", cmd.name)
 	}
 
 	ctx := context.Background()
-
-	userData, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("getting user data: %w", err)
-	}
-
 	feeds, err := s.db.GetFeedFollowsForUser(ctx, userData.ID)
 	if err != nil {
 		return fmt.Errorf("getting feed follows: %w", err)
@@ -336,6 +318,18 @@ func handlerFollowing(s *state, cmd command) error {
 	fmt.Printf("%+v\n", feeds)
 
 	return nil
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		ctx := context.Background()
+		user, err := s.db.GetUser(ctx, s.cfg.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("getting user data: %w", err)
+		}
+
+		return handler(s, cmd, user)
+	}
 }
 
 func main() {
@@ -365,10 +359,10 @@ func main() {
 	c.register("reset", handlerNukeUserData)
 	c.register("users", handleUsers)
 	c.register("agg", handlerAgg)
-	c.register("addfeed", handlerAddFeed)
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	c.register("feeds", handlerFeeds)
-	c.register("follow", handlerFollow)
-	c.register("following", handlerFollowing)
+	c.register("follow", middlewareLoggedIn(handlerFollow))
+	c.register("following", middlewareLoggedIn(handlerFollowing))
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
