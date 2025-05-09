@@ -59,10 +59,11 @@ func main() {
 	c.register("reset", handlerNukeUserData) // delete all database records
 	c.register("users", handleListUsers)     // list all registered users
 	c.register("agg", handlerAgg)
-	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))     // add and follow a feed
-	c.register("feeds", handlerListAllFeeds)                      // list all registered feeds
-	c.register("follow", middlewareLoggedIn(handlerFollow))       // follow a registered feed
-	c.register("following", middlewareLoggedIn(handlerFollowing)) // list feeds followed by current user
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))        // add and follow a feed
+	c.register("feeds", handlerListAllFeeds)                         // list all registered feeds
+	c.register("follow", middlewareLoggedIn(handlerFollow))          // follow a registered feed
+	c.register("following", middlewareLoggedIn(handlerFollowing))    // list feeds followed by current user
+	c.register("unfollow", middlewareLoggedIn(handlerUnfollowFeeds)) // unfollow a feed followed by current user
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
