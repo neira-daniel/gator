@@ -54,16 +54,25 @@ func main() {
 	c := commands{
 		handler: make(map[string]func(*state, command) error),
 	}
-	c.register("login", handlerLogin)        // log in as an existing user
-	c.register("register", handlerRegister)  // register a new user
-	c.register("reset", handlerNukeUserData) // delete all database records
-	c.register("users", handleListUsers)     // list all registered users
+	// log in as an existing user
+	c.register("login", handlerLogin)
+	// register a new user
+	c.register("register", handlerRegister)
+	// delete all database records
+	c.register("reset", handlerNukeUserData)
+	// list all registered users
+	c.register("users", handleListUsers)
 	c.register("agg", handlerAgg)
-	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))        // add and follow a feed
-	c.register("feeds", handlerListAllFeeds)                         // list all registered feeds
-	c.register("follow", middlewareLoggedIn(handlerFollow))          // follow a registered feed
-	c.register("following", middlewareLoggedIn(handlerFollowing))    // list feeds followed by current user
-	c.register("unfollow", middlewareLoggedIn(handlerUnfollowFeeds)) // unfollow a feed followed by current user
+	// add and follow a feed
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	// list all registered feeds
+	c.register("feeds", handlerListAllFeeds)
+	// follow a registered feed
+	c.register("follow", middlewareLoggedIn(handlerFollow))
+	// list feeds followed by current user
+	c.register("following", middlewareLoggedIn(handlerFollowing))
+	// unfollow a feed followed by current user
+	c.register("unfollow", middlewareLoggedIn(handlerUnfollowFeeds))
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
