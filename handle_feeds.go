@@ -27,6 +27,13 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+// handlerAddFeed allows the user to add a feed to the database and start following it.
+//
+// It takes a name for the new feed and its URL.
+//
+// It returns a non-nil error if there was a problem adding the feed to the database
+// (for example, when the feed already exists), if it wasn't possible to make the user
+// follow it or the user made a mistake when calling the command.
 func handlerAddFeed(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 2 {
 		return fmt.Errorf("usage: %v <feed name> <feed URL>", cmd.name)
@@ -43,8 +50,7 @@ func handlerAddFeed(s *state, cmd command, userData database.User) error {
 		UserID:    userData.ID,
 	}
 
-	_, err := s.db.CreateFeed(ctx, feedParams)
-	if err != nil {
+	if _, err := s.db.CreateFeed(ctx, feedParams); err != nil {
 		return fmt.Errorf("storing feed data to the database: %w", err)
 	}
 
@@ -55,7 +61,14 @@ func handlerAddFeed(s *state, cmd command, userData database.User) error {
 	return nil
 }
 
-func handlerFeeds(s *state, cmd command) error {
+// handlerListAllFeeds lists all feeds registered in the database. It prints the name
+// of the feed, the URL, and the username of the user that added it to the database.
+//
+// This function doesn't take arguments.
+//
+// It returns a non-nil error if there was a problem querying the database or the user
+// made a mistake when calling the command.
+func handlerListAllFeeds(s *state, cmd command) error {
 	if len(cmd.arguments) != 0 {
 		return fmt.Errorf("%q doesn't take arguments", cmd.name)
 	}
@@ -63,7 +76,7 @@ func handlerFeeds(s *state, cmd command) error {
 	ctx := context.Background()
 	feeds, err := s.db.GetFeeds(ctx)
 	if err != nil {
-		return fmt.Errorf("getting feed info. from db: %w", err)
+		return fmt.Errorf("getting feed information from the database: %w", err)
 	}
 
 	for _, feed := range feeds {
@@ -73,6 +86,12 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
+// handlerFollow allows the user to follow a registered feed.
+//
+// It takes the feed's URL as argument.
+//
+// It returns a non-nil error if there was a problem querying the database to save or
+// load records or if the user made a mistake when calling the command.
 func handlerFollow(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 1 {
 		return fmt.Errorf("usage: %v <url>", cmd.name)
@@ -81,7 +100,7 @@ func handlerFollow(s *state, cmd command, userData database.User) error {
 	ctx := context.Background()
 	feedID, err := s.db.GetFeedIdByURL(ctx, cmd.arguments[0])
 	if err != nil {
-		return fmt.Errorf("getting feed data: %w", err)
+		return fmt.Errorf("getting feed record from the database: %w", err)
 	}
 
 	timestamp := time.Now().UTC()
@@ -95,14 +114,20 @@ func handlerFollow(s *state, cmd command, userData database.User) error {
 
 	feedFollowData, err := s.db.CreateFeedFollow(ctx, feedFollowParams)
 	if err != nil {
-		return fmt.Errorf("creating feed follow record: %w", err)
+		return fmt.Errorf("storing feed follow record in the database: %w", err)
 	}
 
-	fmt.Printf("%v", feedFollowData)
+	fmt.Printf("following feed with values\n%v", feedFollowData)
 
 	return nil
 }
 
+// handlerFollowing lists all feeds followed by the current user.
+//
+// It doesn't take arguments.
+//
+// It returns a non-nil error if there was a problem querying the database or the user
+// made a mistake when calling the command.
 func handlerFollowing(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 0 {
 		return fmt.Errorf("%q doesn't take arguments", cmd.name)
@@ -114,7 +139,9 @@ func handlerFollowing(s *state, cmd command, userData database.User) error {
 		return fmt.Errorf("getting feed follows: %w", err)
 	}
 
-	fmt.Printf("%+v\n", feeds)
+	for _, feedRecord := range feeds {
+		fmt.Printf("---\n%v", feedRecord)
+	}
 
 	return nil
 }

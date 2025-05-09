@@ -30,3 +30,10 @@ func (f CreateFeedFollowRow) String() string {
 * FeedName  : %v
 `, f.ID, f.CreatedAt, f.UpdatedAt, f.UserID, f.FeedID, f.UserName, f.FeedName)
 }
+
+func (f GetFeedFollowsForUserRow) String() string {
+	return fmt.Sprintf(`* FeedID   : %v
+* FeedName : %v
+* Username : %v
+`, f.FeedID, f.FeedName, f.UserName)
+}

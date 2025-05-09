@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"gator/internal/database"
 	"time"
@@ -10,37 +9,38 @@ import (
 	"github.com/google/uuid"
 )
 
+// handlerLogin allows a user to log in. It returns a non-nil error if the user
+// isn't registered, the configuration file couldn't be updated or the user made
+// a mistake when calling the command.
 func handlerLogin(s *state, cmd command) error {
-	if len(cmd.arguments) == 0 {
-		return errors.New("didn't pass the user name to the 'login' command")
-	}
-	if len(cmd.arguments) > 1 {
-		return errors.New("too many arguments for the 'login' command")
+	if len(cmd.arguments) != 1 {
+		return fmt.Errorf("usage: %v <username>", cmd.name)
 	}
 
 	userName := cmd.arguments[0]
 
 	ctx := context.Background()
 	if _, err := s.db.GetUser(ctx, userName); err != nil {
-		return fmt.Errorf("user '%v' is not registered", userName)
+		return fmt.Errorf("user %q is not registered", userName)
 	}
 
 	if err := s.cfg.SetUser(userName); err != nil {
 		return err
 	}
 
-	fmt.Printf("username has been set to %v\n", userName)
+	fmt.Printf("username has been set to %q\n", userName)
 
 	return nil
 
 }
 
+// handlerRegister allows a user to register themself in the database. It returns a
+// non-nil error when the data can't be stored in the database, it wasn't possible
+// to set the new user as the active one in the configuration or the user made a
+// mistake when calling the command.
 func handlerRegister(s *state, cmd command) error {
-	if len(cmd.arguments) == 0 {
-		return errors.New("didn't pass the user name to the 'register' command")
-	}
-	if len(cmd.arguments) > 1 {
-		return errors.New("too many arguments for the 'register' command")
+	if len(cmd.arguments) != 1 {
+		return fmt.Errorf("usage: %v <username>", cmd.name)
 	}
 
 	timestamp := time.Now().UTC()
@@ -55,27 +55,30 @@ func handlerRegister(s *state, cmd command) error {
 
 	user, err := s.db.CreateUser(ctx, userParams)
 	if err != nil {
-		return fmt.Errorf("couldn't create user: %w", err)
+		return fmt.Errorf("storing user %q in the database: %w", userParams.Name, err)
 	}
 
 	if err = s.cfg.SetUser(userParams.Name); err != nil {
-		return fmt.Errorf("couldn't save the configuration: %w", err)
+		return fmt.Errorf("setting %q as the active user in the configuration file: %w", userParams.Name, err)
 	}
 
-	fmt.Printf("user %v created with values\n%v\n", userParams.Name, user)
+	fmt.Printf("user created with values\n%v\n", user)
 
 	return nil
 }
 
+// handleListUsers prints a list of the registered users to the terminal while tagging
+// the active one. It returns a non-nil error if it was impossible to query the database
+// or the user made a mistake when calling the command.
 func handleListUsers(s *state, cmd command) error {
 	if len(cmd.arguments) != 0 {
-		return errors.New("'users' doesn't take arguments")
+		return fmt.Errorf("%q doesn't take arguments", cmd.name)
 	}
 
 	ctx := context.Background()
 	users, err := s.db.GetUsers(ctx)
 	if err != nil {
-		return fmt.Errorf("list users :: couldn't list registered users: %w", err)
+		return fmt.Errorf("getting all users from the database: %w", err)
 	}
 
 	for _, user := range users {

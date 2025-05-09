@@ -35,7 +35,7 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
-		log.Fatal(fmt.Errorf("couldn't read original configuration file from disk: %w", err))
+		log.Fatal(fmt.Errorf("couldn't read configuration file from disk: %w", err))
 	}
 
 	db, err := sql.Open("postgres", cfg.DbUrl)
@@ -54,15 +54,15 @@ func main() {
 	c := commands{
 		handler: make(map[string]func(*state, command) error),
 	}
-	c.register("login", handlerLogin)
-	c.register("register", handlerRegister)
-	c.register("reset", handlerNukeUserData)
-	c.register("users", handleListUsers)
+	c.register("login", handlerLogin)        // log in as an existing user
+	c.register("register", handlerRegister)  // register a new user
+	c.register("reset", handlerNukeUserData) // delete all database records
+	c.register("users", handleListUsers)     // list all registered users
 	c.register("agg", handlerAgg)
-	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
-	c.register("feeds", handlerFeeds)
-	c.register("follow", middlewareLoggedIn(handlerFollow))
-	c.register("following", middlewareLoggedIn(handlerFollowing))
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))     // add and follow a feed
+	c.register("feeds", handlerListAllFeeds)                      // list all registered feeds
+	c.register("follow", middlewareLoggedIn(handlerFollow))       // follow a registered feed
+	c.register("following", middlewareLoggedIn(handlerFollowing)) // list feeds followed by current user
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
