@@ -146,6 +146,12 @@ func handlerFollowing(s *state, cmd command, userData database.User) error {
 	return nil
 }
 
+// handlerUnfollowFeeds allows the user to unfollow a feed.
+//
+// It takes the url of the feed to unfollow as parameter.
+//
+// It returns a non-nil error when it wasn't possible to query the database for the
+// feed id or there was an error updating the feed_follows database.
 func handlerUnfollowFeeds(s *state, cmd command, userData database.User) error {
 	if len(cmd.arguments) != 1 {
 		return fmt.Errorf("usage: %v <url>", cmd.name)
