@@ -2,29 +2,48 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"gator/internal/database"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+// handlerAgg starts a loop that fetches feeds indefinitely. It blocks the program
+// execution, and can only be terminated pressing CTRL-C. The users need to use the
+// program in a different instance (shell) to the one that is running `handlerAgg`.
+//
+// The function takes a human readable time interval expressed in "ms", "s", "m" or
+// "h" for miliseconds, seconds, minutes and hours, respectively. They can be mixed
+// with each other. For example, "1h10m20s" is a valid interval of 1 hour, 10 minutes
+// and 20 seconds.
+//
+// handlerAgg returns a non-nil error only when the received time interval couldn't
+// be parsed. In case there was a problem fetching a feed, the error will be logged
+// without killing the program so it keeps working on fetching the next feed in the
+// queue.
 func handlerAgg(s *state, cmd command) error {
-	if len(cmd.arguments) != 0 {
-		return errors.New("'agg' doesn't take arguments")
+	if len(cmd.arguments) != 1 {
+		return fmt.Errorf("usage: %v <time between requests>", cmd.name)
 	}
 
-	ctx := context.Background()
-	url := "https://www.wagslane.dev/index.xml"
-	xmlData, err := fetchFeed(ctx, url)
+	timeBetweenRequests, err := time.ParseDuration(cmd.arguments[0])
 	if err != nil {
-		return fmt.Errorf("fetching feed in %v: %w", url, err)
+		return fmt.Errorf("parsing the time between requests parameter: %w", err)
+	}
+	fmt.Printf("Collecting feeds every %v starting right now\n", timeBetweenRequests)
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	// block execution by not using a goroutine and start fetching feeds immediately
+	// by using a blank for-condition (we should have used `for range ticker.C` to
+	// wait for the first tick to start fetching feeds)
+	for ; ; <-ticker.C {
+		if err := scrapeFeeds(s); err != nil {
+			log.Printf("scraping feeds: %v", err)
+		}
 	}
 
-	fmt.Printf("%v\n", xmlData)
-
-	return nil
 }
 
 // handlerAddFeed allows the user to add a feed to the database and start following it.

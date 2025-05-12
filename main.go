@@ -62,6 +62,7 @@ func main() {
 	c.register("reset", handlerNukeUserData)
 	// list all registered users
 	c.register("users", handleListUsers)
+	// starts the infinite fetching loop of feeds
 	c.register("agg", handlerAgg)
 	// add and follow a feed
 	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
