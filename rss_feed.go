@@ -9,8 +9,11 @@ import (
 	"gator/internal/database"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type RSSFeed struct {
@@ -97,7 +100,11 @@ func scrapeFeeds(s *state) error {
 		return fmt.Errorf("getting feed to fetch: %w", err)
 	}
 
-	if err := s.db.MarkFeedFetched(ctx, database.MarkFeedFetchedParams{LastFetchedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true}, ID: feed.ID}); err != nil {
+	// we mark the feed as fetched before fetching it to account for the chance that
+	// we encounter an error while making the GET request
+	// this way, we always store the time at which we attempted the fetch
+	if err := s.db.MarkFeedFetched(ctx, database.MarkFeedFetchedParams{
+		LastFetchedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true}, ID: feed.ID}); err != nil {
 		return fmt.Errorf("marking feed from %v as fetched: %w", feed.Url, err)
 	}
 
@@ -106,9 +113,26 @@ func scrapeFeeds(s *state) error {
 		return fmt.Errorf("fetching feed from %v: %w", feed.Url, err)
 	}
 
-	fmt.Printf("---\nFeed: %v\n", xmlData.Channel.Title)
-	for _, article := range xmlData.Channel.Item {
-		fmt.Printf("- %v\n", article.Title)
+	log.Printf("[OK] %v\n", xmlData.Channel.Title)
+	timestampFormat := "Mon, 02 Jan 2006 15:04:05 -0700"
+	timestamp := time.Now().UTC()
+	for _, post := range xmlData.Channel.Item {
+		pubDate, err := time.Parse(timestampFormat, post.PubDate)
+		if err != nil {
+			pubDate = time.Time{}
+		}
+		if err := s.db.CreatePost(ctx, database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   timestamp,
+			UpdatedAt:   timestamp,
+			Title:       post.Title,
+			Url:         post.Link,
+			Description: post.Description,
+			PublishedAt: pubDate,
+			FeedID:      feed.ID,
+		}); err != nil {
+			log.Printf("%v\n", err)
+		}
 	}
 
 	return nil
