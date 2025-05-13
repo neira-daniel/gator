@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gator/internal/database"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,12 +37,16 @@ func handlerAgg(s *state, cmd command) error {
 
 	ticker := time.NewTicker(timeBetweenRequests)
 	// block execution by not using a goroutine and start fetching feeds immediately
-	// by using a blank for-condition (we should have used `for range ticker.C` to
-	// wait for the first tick to start fetching feeds)
-	for ; ; <-ticker.C {
+	// by using an empty for-condition (we should have used `for range ticker.C` or
+	// `for t := range ticker.C` if we want the ticker `t` timestamp to wait for the
+	// first tick to start fetching feeds)
+	t := time.Now()
+	for {
 		if err := scrapeFeeds(s); err != nil {
-			log.Printf("scraping feeds: %v", err)
+			log.Printf("%v - found error while scraping feeds: %v", t.UTC(), err)
 		}
+		// we reassign the value of the `t` we declared and assigned before the for-block
+		t = <-ticker.C
 	}
 
 }
@@ -155,7 +160,7 @@ func handlerFollowing(s *state, cmd command, userData database.User) error {
 	ctx := context.Background()
 	feeds, err := s.db.GetFeedFollowsForUser(ctx, userData.ID)
 	if err != nil {
-		return fmt.Errorf("getting feed follows: %w", err)
+		return fmt.Errorf("getting feed follows from the database: %w", err)
 	}
 
 	for _, feedRecord := range feeds {
@@ -186,6 +191,45 @@ func handlerUnfollowFeeds(s *state, cmd command, userData database.User) error {
 
 	if err := s.db.UnfollowFeed(ctx, database.UnfollowFeedParams{UserID: userData.ID, FeedID: feedID}); err != nil {
 		return fmt.Errorf("deleting feed-follow from the database: %w", err)
+	}
+
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, userData database.User) error {
+	if len(cmd.arguments) > 1 {
+		return fmt.Errorf("usage: %v [number of posts]", cmd.name)
+	}
+
+	var limit int32
+	limit = 2
+	if len(cmd.arguments) == 1 {
+		limit64, err := strconv.ParseInt(cmd.arguments[0], 10, 32)
+		if err != nil {
+			return fmt.Errorf("parsing optional number of posts parameter: %w", err)
+		}
+		limit = int32(limit64)
+	}
+
+	ctx := context.Background()
+	feedFollows, err := s.db.GetFeedFollowsForUser(ctx, userData.ID)
+	if err != nil {
+		return fmt.Errorf("getting feed follows from the database: %w", err)
+	}
+
+	for _, feedFollow := range feedFollows {
+		posts, err := s.db.GetPostsForUser(ctx, database.GetPostsForUserParams{
+			FeedID: feedFollow.FeedID, Limit: limit,
+		})
+		if err != nil {
+			log.Printf("[NOT OK] getting posts from %q for %v: %v", feedFollow.FeedName, userData.Name, err)
+		}
+
+		fmt.Printf("---\n%v\n", feedFollow.FeedName)
+		for _, post := range posts {
+			fmt.Printf("- %v\n", post.Title)
+		}
+
 	}
 
 	return nil

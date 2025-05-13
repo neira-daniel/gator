@@ -74,6 +74,8 @@ func main() {
 	c.register("following", middlewareLoggedIn(handlerFollowing))
 	// unfollow a feed followed by current user
 	c.register("unfollow", middlewareLoggedIn(handlerUnfollowFeeds))
+	// print post titles from feeds followed by active user
+	c.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	cliArgs := os.Args
 	if len(cliArgs) < 2 {
