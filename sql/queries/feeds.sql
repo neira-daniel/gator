@@ -53,3 +53,23 @@ SELECT id, url
 FROM feeds
 ORDER BY last_fetched_at ASC NULLS FIRST
 LIMIT 1;
+
+-- name: CreatePost :exec
+INSERT INTO posts (
+    id,
+    created_at,
+    updated_at,
+    title,
+    url,
+    description,
+    published_at,
+    feed_id
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: GetPostsForUser :many
+SELECT title, published_at, url, description
+FROM posts
+WHERE feed_id = $1
+ORDER BY published_at DESC
+LIMIT $2;
